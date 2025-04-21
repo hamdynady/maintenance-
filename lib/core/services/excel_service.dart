@@ -51,10 +51,10 @@ class ExcelService {
 
       // Create maps to track unique values
       final Map<String, int> brandMap = {}; // BRAND -> brand_id
-      final Map<String, int> productMap = {}; // PRODUCT -> product_id
-      final Map<String, int> subProductMap =
-          {}; // SUB_PRODUCT -> sub_product_id
-      final Map<String, int> modelMap = {}; // MODEL -> model_id
+      final Map<String, Map<String, int>> brandProductMap =
+          {}; // BRAND -> {PRODUCT -> product_id}
+      final Map<String, Map<String, int>> productSubProductMap =
+          {}; // PRODUCT -> {SUB_PRODUCT -> sub_product_id}
 
       // Get database instance
       final db = await _dbHelper.database;
@@ -72,68 +72,69 @@ class ExcelService {
             uniqueBrands.add(brand);
             final id = await txn.insert('brands', {'name': brand});
             brandMap[brand] = id;
+            brandProductMap[brand] = {};
           }
         }
 
-        // Process products
-        final uniqueProducts = <String>{};
+        // Process products for each brand
         for (var i = 1; i < sheet.rows.length; i++) {
           final row = sheet.rows[i];
           if (row.isEmpty) continue;
 
           final brand = row[brandIndex]?.value.toString();
           final product = row[productIndex]?.value.toString();
-          if (brand != null &&
-              product != null &&
-              !uniqueProducts.contains(product)) {
-            uniqueProducts.add(product);
+
+          if (brand != null && product != null) {
             final brandId = brandMap[brand];
-            if (brandId != null) {
+            if (brandId != null &&
+                !brandProductMap[brand]!.containsKey(product)) {
               final id = await txn.insert('products', {
                 'brand_id': brandId,
                 'name': product,
               });
-              productMap[product] = id;
+              brandProductMap[brand]![product] = id;
+              productSubProductMap[product] = {};
             }
           }
         }
 
-        // Process sub-products
-        final uniqueSubProducts = <String>{};
+        // Process sub-products for each product-brand combination
         for (var i = 1; i < sheet.rows.length; i++) {
           final row = sheet.rows[i];
           if (row.isEmpty) continue;
 
+          final brand = row[brandIndex]?.value.toString();
           final product = row[productIndex]?.value.toString();
           final subProduct = row[subProductIndex]?.value.toString();
-          if (product != null &&
-              subProduct != null &&
-              !uniqueSubProducts.contains(subProduct)) {
-            uniqueSubProducts.add(subProduct);
-            final productId = productMap[product];
-            if (productId != null) {
+
+          if (brand != null && product != null && subProduct != null) {
+            final productId = brandProductMap[brand]?[product];
+            if (productId != null &&
+                !productSubProductMap[product]!.containsKey(subProduct)) {
               final id = await txn.insert('sub_products', {
                 'product_id': productId,
                 'name': subProduct,
               });
-              subProductMap[subProduct] = id;
+              productSubProductMap[product]![subProduct] = id;
             }
           }
         }
 
-        // Process models
-        final uniqueModels = <String>{};
+        // Process models for each sub-product
         for (var i = 1; i < sheet.rows.length; i++) {
           final row = sheet.rows[i];
           if (row.isEmpty) continue;
 
+          final brand = row[brandIndex]?.value.toString();
+          final product = row[productIndex]?.value.toString();
           final subProduct = row[subProductIndex]?.value.toString();
           final model = row[modelIndex]?.value.toString();
-          if (subProduct != null &&
-              model != null &&
-              !uniqueModels.contains(model)) {
-            uniqueModels.add(model);
-            final subProductId = subProductMap[subProduct];
+
+          if (brand != null &&
+              product != null &&
+              subProduct != null &&
+              model != null) {
+            final subProductId = productSubProductMap[product]?[subProduct];
             if (subProductId != null) {
               await txn.insert('models', {
                 'sub_product_id': subProductId,
@@ -148,7 +149,6 @@ class ExcelService {
                     ? row[manufacturerIndex]?.value.toString()
                     : null,
               });
-              modelMap[model] = 1;
             }
           }
         }

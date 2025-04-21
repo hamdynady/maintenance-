@@ -120,7 +120,7 @@ class MaintenanceService {
       'products',
       where: 'brand_id = ?',
       whereArgs: [brandId],
-      distinct: true,
+      orderBy: 'name',
     );
   }
 
@@ -130,7 +130,7 @@ class MaintenanceService {
       'sub_products',
       where: 'product_id = ?',
       whereArgs: [productId],
-      distinct: true,
+      orderBy: 'name',
     );
   }
 
@@ -140,7 +140,7 @@ class MaintenanceService {
       'models',
       where: 'sub_product_id = ?',
       whereArgs: [subProductId],
-      distinct: true,
+      orderBy: 'name',
     );
   }
 

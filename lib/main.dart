@@ -9,6 +9,8 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart';
 
 // Main entry point of the application
 void main() async {
@@ -17,6 +19,9 @@ void main() async {
 
   try {
     developer.log('Starting application initialization...');
+
+    // Clear SharedPreferences and delete database
+    await _resetDatabase();
 
     // Initialize SharedPreferences
     final prefs = await SharedPreferences.getInstance();
@@ -53,6 +58,33 @@ void main() async {
   } catch (e) {
     // Use the error handler for initialization errors
     runApp(ErrorHandler.handleInitializationError(e));
+  }
+}
+
+// Helper method to reset database and preferences
+Future<void> _resetDatabase() async {
+  try {
+    // Clear SharedPreferences
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // Delete database file
+    final dbPath = await getDatabasesPath();
+    final dbFile = File(join(dbPath, 'maintenance.db'));
+    if (await dbFile.exists()) {
+      await dbFile.delete();
+      developer.log('Database file deleted successfully');
+    }
+
+    // Delete Excel file from documents directory
+    final directory = await getApplicationDocumentsDirectory();
+    final excelFile = File('${directory.path}/SREENFRESH.xlsx');
+    if (await excelFile.exists()) {
+      await excelFile.delete();
+      developer.log('Excel file deleted successfully');
+    }
+  } catch (e) {
+    developer.log('Error resetting database: $e', error: e);
   }
 }
 
